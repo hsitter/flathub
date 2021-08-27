@@ -1,0 +1,38 @@
+{
+    "id": "org.kde.konsole",
+    "runtime": "org.kde.Platform",
+    "runtime-version": "5.15-21.08",
+    "sdk": "org.kde.Sdk",
+    "command": "konsole",
+    "rename-icon": "utilities-terminal",
+    "finish-args": [
+        "--device=dri",
+        "--share=ipc",
+        "--socket=wayland",
+        "--socket=fallback-x11",
+        "--talk-name=org.a11y.Bus",
+        "--talk-name=org.freedesktop.Flatpak"
+    ],
+    "modules": [
+        {
+            "name": "konsole",
+            "buildsystem": "cmake-ninja",
+            "config-opts": [
+                "-DINSTALL_ICONS=ON"
+            ],
+            "sources": [
+                {
+                    "type": "archive",
+                    "url": "https://download.kde.org/stable/release-service/22.08.0/src/konsole-22.08.0.tar.xz",
+                    "sha256": "bbcc5ce567dbffaea6722fe43682b68f2b54bb6c6a2b6eeb2f4b86809d3551d6",
+                    "x-checker-data": {
+                        "type": "anitya",
+                        "project-id": 8763,
+                        "stable-only": true,
+                        "url-template": "https://download.kde.org/stable/release-service/$version/src/konsole-$version.tar.xz"
+                    }
+                }
+            ]
+        }
+    ]
+}
