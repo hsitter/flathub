@@ -3,6 +3,9 @@
     "runtime": "org.kde.Platform",
     "runtime-version": "5.15-21.08",
     "sdk": "org.kde.Sdk",
+    "sdk-extensions" : [
+        "org.freedesktop.Sdk.Extension.golang"
+    ],
     "command": "konsole",
     "rename-icon": "utilities-terminal",
     "finish-args": [
@@ -13,7 +16,42 @@
         "--talk-name=org.a11y.Bus",
         "--talk-name=org.freedesktop.Flatpak"
     ],
-    "modules": [
+   "modules": [
+        {
+            "name": "host-spawn",
+            "buildsystem": "simple",
+            "build-commands": [
+                "install -m755 host-spawn-x86_64 /app/host-spawn"
+            ],
+            "sources": [
+                {
+                    "type": "file",
+                    "url": "https://github.com/1player/host-spawn/releases/download/1.2.1/host-spawn-x86_64",
+                    "sha256": "49c7c1902030f7a027c94791399fe9951f3675d1c81be9c987a9f975c570255e"
+                }
+            ]
+        },
+        {
+            "name": "kcoreaddons",
+            "buildsystem": "cmake-ninja",
+            "config-opts": [
+                "-DBUILD_TESTING=OFF"
+            ],
+            "cleanup": [
+                "/bin"
+            ],
+            "sources": [
+                {
+                    "type": "archive",
+                    "url": "https://download.kde.org/stable/frameworks/5.97/kcoreaddons-5.97.0.tar.xz",
+                    "sha256": "09403513873e4fc3d9d2d13fb486d9cce0bc6bd5fde0b1c7b2481e0a404202aa"
+                },
+                {
+                    "type": "patch",
+                    "path": "0001-ksandbox-Use-host-spawn.patch"
+                }
+            ]
+        },
         {
             "name": "konsole",
             "buildsystem": "cmake-ninja",
