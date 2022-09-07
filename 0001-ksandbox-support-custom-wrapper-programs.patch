@@ -1,0 +1,91 @@
+From 5878018c12cbfe8c9c8a38658e834c9b7b9f53ef Mon Sep 17 00:00:00 2001
+From: Harald Sitter <sitter@kde.org>
+Date: Tue, 6 Sep 2022 14:17:23 +0200
+Subject: [PATCH] ksandbox: support custom wrapper programs
+
+this adds the ability to use host-spawn rather than flatpak-spawn.
+
+passing along env and extra arguments is not supported with this spawn
+system.
+---
+ src/lib/util/ksandbox.cpp | 46 ++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 41 insertions(+), 5 deletions(-)
+
+diff --git a/src/lib/util/ksandbox.cpp b/src/lib/util/ksandbox.cpp
+index 0bd01037..c5c9ad5c 100644
+--- a/src/lib/util/ksandbox.cpp
++++ b/src/lib/util/ksandbox.cpp
+@@ -3,9 +3,13 @@
+ 
+ #include "ksandbox.h"
+ 
++#include <optional>
++
+ #include <QDebug>
+ #include <QFileInfo>
+ 
++#include "kshell.h"
++
+ bool KSandbox::isInside()
+ {
+     static const bool isInside = isFlatpak() || isSnap();
+@@ -24,12 +28,8 @@ bool KSandbox::isSnap()
+     return isSnap;
+ }
+ 
+-KSandbox::ProcessContext KSandbox::makeHostContext(const QProcess &process)
++static KSandbox::ProcessContext makeHostContextFlatpakSpawn(const QProcess &process)
+ {
+-    if (!KSandbox::isFlatpak()) {
+-        return {process.program(), process.arguments()};
+-    }
+-
+     QStringList args{QStringLiteral("--watch-bus"), QStringLiteral("--host"), QStringLiteral("--forward-fd=1"), QStringLiteral("--forward-fd=2")};
+     if (!process.workingDirectory().isEmpty()) {
+         args << QStringLiteral("--directory=%1").arg(process.workingDirectory());
+@@ -49,6 +49,42 @@ KSandbox::ProcessContext KSandbox::makeHostContext(const QProcess &process)
+     return {QStringLiteral("/usr/bin/flatpak-spawn"), args};
+ }
+ 
++static QString wrapperPath()
++{
++    const static QString path = qEnvironmentVariable("KSANDBOX_WRAPPER_PATH");
++    return path;
++}
++
++static KSandbox::ProcessContext makeHostContextCustomWrapper(const QProcess &process)
++{
++    QStringList args({process.program()}); // Could add arguments from env as well, no use case right now
++    args += process.arguments();
++    return {wrapperPath(), args};
++}
++
++static std::optional<KSandbox::ProcessContext> maybeRunCustomWrapper(const QProcess &process)
++{
++    const static auto hasWrapper = !wrapperPath().isEmpty();
++    if (!hasWrapper) {
++        return std::nullopt;
++    }
++    // requesting a wrapper but not finding it in a file system is a fatal problem
++    Q_ASSERT(QFileInfo::exists(wrapperPath()));
++    return makeHostContextCustomWrapper(process);
++}
++
++KCOREADDONS_EXPORT KSandbox::ProcessContext KSandbox::makeHostContext(const QProcess &process)
++{
++    if (!KSandbox::isFlatpak()) {
++        return {process.program(), process.arguments()};
++    }
++
++    if (const auto optionalContext = maybeRunCustomWrapper(process); optionalContext.has_value()) {
++        return optionalContext.value();
++    }
++    return makeHostContextFlatpakSpawn(process);
++}
++
+ KCOREADDONS_EXPORT void KSandbox::startHostProcess(QProcess &process, QProcess::OpenMode mode)
+ {
+     const auto context = makeHostContext(process);
+-- 
+2.34.1
+

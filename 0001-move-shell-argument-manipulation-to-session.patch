@@ -1,0 +1,52 @@
+From 73b219879602a8ad0d61ce88aaf4f82cc33197b7 Mon Sep 17 00:00:00 2001
+From: Harald Sitter <sitter@kde.org>
+Date: Tue, 30 Aug 2022 11:14:13 +0200
+Subject: [PATCH] move shell argument manipulation to session
+
+we need this to happen before KSandbox::makeHostContext because the
+first argument is not necessarily the shell command anymore afterwards,
+confusing the legacy logic inside Pty. simply move the manipulation into
+Session.cpp
+
+this should make the flatpak build work properly
+---
+ src/Pty.cpp             | 6 +-----
+ src/session/Session.cpp | 5 +++++
+ 2 files changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/src/Pty.cpp b/src/Pty.cpp
+index ef531f81..5d5202c9 100644
+--- a/src/Pty.cpp
++++ b/src/Pty.cpp
+@@ -258,11 +258,7 @@ int Pty::start(const QString &programName, const QStringList &programArguments,
+ {
+     clearProgram();
+ 
+-    // For historical reasons, the first argument in programArguments is the
+-    // name of the program to execute, so create a list consisting of all
+-    // but the first argument to pass to setProgram()
+-    Q_ASSERT(programArguments.count() >= 1);
+-    setProgram(programName, programArguments.mid(1));
++    setProgram(programName, programArguments);
+ 
+     addEnvironmentVariables(environmentList);
+ 
+diff --git a/src/session/Session.cpp b/src/session/Session.cpp
+index a611363e..39f4f50f 100644
+--- a/src/session/Session.cpp
++++ b/src/session/Session.cpp
+@@ -468,6 +468,11 @@ void Session::run()
+     // if no arguments are specified, fall back to program name
+     QStringList arguments = _arguments.join(QLatin1Char(' ')).isEmpty() ? QStringList() << exec : _arguments;
+ 
++    // For historical reasons, the first argument in _arguments is the
++    // name of the program to execute, remove it in favor of the actual program name
++    Q_ASSERT(arguments.count() >= 1);
++    arguments = arguments.mid(1);
++
+     if (!_initialWorkingDir.isEmpty()) {
+         _shellProcess->setInitialWorkingDirectory(_initialWorkingDir);
+     } else {
+-- 
+2.34.1
+
